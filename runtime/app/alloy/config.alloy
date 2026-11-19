@@ -1,0 +1,67 @@
+// =============================================================================
+// Grafana Alloy Configuration — Acme Planner App VM
+//
+// Runs as a sidecar container on every app-environment VM (cd, demo, issues,
+// production). Tails the local Docker socket for the base service containers
+// (caddy/redis/chrome/solver) plus any tenant app containers, and ships the
+// log streams to the observability VM's Loki via the peered VNet.
+//
+// The NestJS API and tenant containers ship their own structured logs via the
+// OTEL SDK directly to obs Alloy on 4317 — those are NOT scraped here to avoid
+// double-shipping.
+//
+// Required environment variable:
+//   LOKI_REMOTE_URL   e.g. http://10.0.10.4:3100/loki/api/v1/push
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Discover the base service + caddy containers on this VM
+// ---------------------------------------------------------------------------
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "name"
+    values = ["acme-caddy", "acme-redis", "acme-chrome", "acme-solver"]
+  }
+}
+
+discovery.relabel "container_labels" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/acme-(.*)"
+    replacement   = "acme-$1"
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tail container logs and push directly to obs Loki over peered VNet
+// ---------------------------------------------------------------------------
+loki.source.docker "container_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.container_labels.output
+  forward_to = [loki.write.observability.receiver]
+}
+
+loki.write "observability" {
+  endpoint {
+    url = sys.env("LOKI_REMOTE_URL")
+  }
+  external_labels = {
+    env_slug = sys.env("ENV_SLUG"),
+  }
+}

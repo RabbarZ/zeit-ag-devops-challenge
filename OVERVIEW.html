@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Acme Planner DevOps assessment: overview</title>
+<style>
+/* zeit ag corporate design: Inter Tight (system fallback offline), palette colours only, radius scale 30/20/16/12, light look. */
+:root {
+  --navy: #000816;
+  --blue: #004FE3;
+  --sky: #0396F2;
+  --pink: #FF84C1;
+  --pink-dark: #F33092;
+  --soft: #FAFBFD;
+  --white: #FFFFFF;
+  --line: rgba(0, 8, 22, 0.10);
+  --muted: rgba(0, 8, 22, 0.62);
+  --radius-big: 30px;
+  --radius-medium: 20px;
+  --radius-card: 16px;
+  --radius-small: 12px;
+}
+* { box-sizing: border-box; min-width: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--soft); color: var(--navy);
+  font-family: 'Inter Tight', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px; line-height: 1.55; letter-spacing: 0.02em; overflow-wrap: anywhere;
+}
+.page { max-width: 1120px; margin: 0 auto; padding: 32px 24px 48px; }
+h1, h2 { letter-spacing: 0; }
+h3, h4 { letter-spacing: 0.01em; }
+h1 { font-size: 34px; font-weight: 500; line-height: 1.15; margin: 0; }
+h2 { font-size: 24px; font-weight: 600; line-height: 1.25; margin: 0 0 6px; }
+h3 { font-size: 18px; font-weight: 500; line-height: 1.3; margin: 0 0 10px; }
+p { margin: 0 0 10px; }
+p:last-child { margin-bottom: 0; }
+a { color: var(--blue); }
+code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88em; letter-spacing: 0; }
+code { background: rgba(0, 79, 227, 0.07); border-radius: 6px; padding: 1px 5px; }
+pre { background: var(--soft); border: 1px solid var(--line); border-radius: var(--radius-small); padding: 12px 14px; white-space: pre-wrap; margin: 10px 0 0; }
+img { max-width: 100%; height: auto; display: block; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 24px; }
+.top > div { flex: 1; }
+.top img { width: 128px; height: calc(128px * 143 / 382); flex: none; }
+.eyebrow { font-size: 13px; font-weight: 500; color: var(--blue); margin-bottom: 8px; }
+.meta, .lead, .muted { color: var(--muted); }
+.meta { font-size: 13px; margin-top: 10px; }
+.lead { margin: 0 0 20px; max-width: 760px; }
+
+section { margin-top: 40px; }
+.card { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 20px 22px; }
+.module { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-medium); padding: 24px; }
+.wash {
+  background:
+    radial-gradient(90% 120% at 0% 0%, rgba(0, 79, 227, 0.12), rgba(0, 79, 227, 0) 60%),
+    radial-gradient(90% 120% at 100% 100%, rgba(255, 132, 193, 0.12), rgba(255, 132, 193, 0) 60%),
+    var(--white);
+}
+.grid { display: grid; gap: 16px; align-items: stretch; }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 860px) { .grid.two, .grid.three { grid-template-columns: 1fr; } }
+
+/* The one deliberate dark highlight: CTA gradient on a lightened navy base. */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; }
+@media (max-width: 860px) { .hero { grid-template-columns: 1fr; } }
+.highlight {
+  border-radius: var(--radius-big); color: var(--white); padding: 28px 30px;
+  background:
+    radial-gradient(130% 120% at 100% 0%, rgba(255, 132, 193, 0.70) 0%, rgba(0, 79, 227, 0.20) 48%, rgba(0, 79, 227, 0) 78%),
+    #1A212D;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 22px;
+}
+.highlight p { font-size: 20px; line-height: 1.4; letter-spacing: 0.01em; margin: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.fact { display: inline-flex; align-items: center; gap: 8px; border-radius: var(--radius-small); padding: 6px 12px; background: rgba(255, 255, 255, 0.14); font-size: 13.5px; font-weight: 500; }
+.fact svg, .icon svg { width: 16px; height: 16px; flex: none; }
+
+ol.flow { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+ol.flow li { counter-increment: step; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; }
+ol.flow li + li { margin-top: 12px; }
+ol.flow li::before {
+  content: counter(step); display: grid; place-items: center; width: 30px; height: 30px;
+  border-radius: 10px; background: rgba(0, 79, 227, 0.10); color: var(--blue); font-weight: 600; letter-spacing: 0;
+}
+ol.flow li > div { padding-top: 4px; }
+ol.flow strong { font-weight: 600; }
+
+.impl { display: flex; flex-direction: column; gap: 10px; }
+.impl .tag { align-self: flex-start; border-radius: var(--radius-small); padding: 3px 10px; font-size: 12.5px; font-weight: 600; letter-spacing: 0; background: var(--blue); color: var(--white); }
+.impl h3 { margin: 0; }
+.include { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.include > span:first-child { color: var(--muted); font-size: 13.5px; margin-right: 4px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-small); padding: 5px 11px; font-size: 13px; font-weight: 500; background: rgba(0, 79, 227, 0.08); color: var(--navy); }
+.pill svg { width: 14px; height: 14px; color: var(--blue); }
+
+ul.list { list-style: none; padding: 0; margin: 0; }
+ul.list li { position: relative; padding-left: 20px; }
+ul.list li + li { margin-top: 6px; }
+ul.list li::before { content: ''; position: absolute; left: 4px; top: calc(0.775em - 3px); width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+ul.list.no li::before { background: var(--pink-dark); }
+
+.part-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.part-head .num { font-size: 22px; font-weight: 500; letter-spacing: 0; }
+.bar { height: 10px; border-radius: 6px; background: rgba(0, 8, 22, 0.07); margin: 8px 0 14px; overflow: hidden; }
+.bar > span { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--sky), var(--blue)); }
+.q { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.q:first-of-type { border-top: 0; }
+.q b { font-weight: 600; color: var(--blue); letter-spacing: 0; }
+.q small { display: block; color: var(--pink-dark); font-size: 12.5px; font-weight: 500; }
+.reflection .bar > span { background: linear-gradient(90deg, var(--pink), var(--pink-dark)); }
+
+.timeline { display: flex; height: 44px; border-radius: var(--radius-small); overflow: hidden; gap: 3px; }
+.timeline > span { display: grid; place-items: center; color: var(--white); font-size: 12.5px; font-weight: 500; letter-spacing: 0; white-space: nowrap; overflow: hidden; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; font-size: 13.5px; }
+.legend > span { display: inline-flex; align-items: center; gap: 8px; }
+.legend i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; flex: none; }
+
+.scores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .scores { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.score { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius-small); font-weight: 600; letter-spacing: 0; color: var(--white); margin-bottom: 8px; }
+.s1 { background: var(--pink-dark); } .s2 { background: var(--pink); color: var(--navy); } .s3 { background: var(--sky); } .s4 { background: var(--blue); }
+
+figure { margin: 0; }
+figure img { border-radius: var(--radius-small); border: 1px solid var(--line); background: var(--white); }
+figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--white); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--line); }
+thead th { border-top: 0; font-weight: 500; color: var(--muted); font-size: 13px; background: var(--soft); }
+
+.checks label { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; padding: 7px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.checks label:first-of-type { border-top: 0; }
+.checks input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--blue); }
+.checks input:checked + span { color: var(--muted); text-decoration: line-through; }
+.progress-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 4px; }
+.button { border: 0; border-radius: var(--radius-small); padding: 7px 14px; font: inherit; font-size: 13px; background: rgba(0, 8, 22, 0.06); color: var(--navy); cursor: pointer; }
+
+footer { margin-top: 64px; padding: 22px 24px; border-radius: var(--radius-medium); color: var(--muted); font-size: 12.5px;
+  background: linear-gradient(90deg, rgba(3, 150, 242, 0.06), rgba(0, 79, 227, 0.06)); }
+footer p + p { margin-top: 6px; }
+
+@media (max-width: 540px) {
+  .page { padding: 24px 16px 32px; }
+  .top { align-items: flex-start; gap: 16px; }
+  .top img { width: 80px; height: auto; }
+  h1 { font-size: 28px; }
+  .highlight { padding: 24px; }
+  .highlight p { font-size: 18px; }
+  .timeline > span { font-size: 0; }
+}
+@media print {
+  body { background: var(--white); }
+  .card, .module, .highlight { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Acme Planner · DevOps assessment</div>
+      <h1>Task overview</h1>
+      <div class="meta">A visual summary of <a href="README.md">README.md</a>. Where the two differ, the README applies.</div>
+    </div>
+    <img src="data:image/png;base64,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" alt="zeit ag">
+  </header>
+
+  <div class="hero">
+    <div class="highlight">
+      <p>Review how Acme Planner runs on Azure, rank the risks, implement three focused changes, reflect on how you worked, and explain your decisions to the developers.</p>
+      <div class="facts">
+        <span class="fact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/></svg>About 2 h at most (recommended)</span>
+        <span class="fact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 18a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm0 -12a2 2 0 0 1 2 2a2 2 0 0 1 2 -2a2 2 0 0 1 -2 -2a2 2 0 0 1 -2 2zm-7 12a6 6 0 0 1 6 -6a6 6 0 0 1 -6 -6a6 6 0 0 1 -6 6a6 6 0 0 1 6 6z"/></svg>AI encouraged: use it fully</span>
+        <span class="fact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.58 5.548c.24 -.11 .492 -.207 .752 -.286c1.88 -.572 3.956 -.193 5.444 1c1.488 1.19 2.162 3.007 1.77 4.769h.99c1.913 0 3.464 1.56 3.464 3.486c0 .957 -.383 1.824 -1.003 2.454m-2.997 1.033h-11.343c-2.572 -.004 -4.657 -2.011 -4.657 -4.487c0 -2.475 2.085 -4.482 4.657 -4.482c.13 -.582 .37 -1.128 .7 -1.62"/><path d="M3 3l18 18"/></svg>No cloud account needed</span>
+        <span class="fact">German or English</span>
+      </div>
+    </div>
+    <div class="module wash">
+      <h3>How it works</h3>
+      <ol class="flow">
+        <li><div><strong>Orient.</strong> Read <code>docs/</code>, skim the Terraform and compose files.</div></li>
+        <li><div><strong>Answer</strong> A1–C6 briefly in <code>SOLUTION.md</code>. Bullets are enough.</div></li>
+        <li><div><strong>Implement three changes:</strong> A3, B1 and one C question.</div></li>
+        <li><div><strong>Reflect</strong> in R1–R6: your work, the AI, and agentic delivery.</div></li>
+        <li><div><strong>Hand in</strong> before the agreed deadline with <code>npm run handin</code>.</div></li>
+        <li><div><strong>Debrief:</strong> 15-minute walkthrough, then questions. No AI assistant.</div></li>
+      </ol>
+    </div>
+  </div>
+
+  <section>
+    <h2>Three required implementations</h2>
+    <p class="lead">Real paths, resources and service names from this pack, in syntax the tool accepts. Edit the files or write snippets in <code>SOLUTION.md</code>. A few complete changes beat many fragments.</p>
+    <div class="grid three">
+      <div class="card wash impl"><span class="tag">A3</span><h3>One quick win</h3><p>A complete improvement that can ship in days, for example in <code>infra/</code> or <code>runtime/</code>.</p></div>
+      <div class="card wash impl"><span class="tag">B1</span><h3>One loadable alert rule</h3><p>Prometheus, Loki or Grafana alerting, with the file mount and rule-loading configuration it needs, and collection for any new signal.</p></div>
+      <div class="card wash impl"><span class="tag">C1–C6</span><h3>One improvement of your choice</h3><p>Pick one C question, mark it “Selected implementation” and name it in the summary.</p></div>
+    </div>
+    <div class="include">
+      <span>For each, write down:</span>
+      <span class="pill">Customer impact</span><span class="pill">Files or code</span><span class="pill">Rollout order and commands</span><span class="pill">Verification: run, or marked “not run”</span><span class="pill">Main risk</span><span class="pill">Rollback</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>What you answer</h2>
+    <p class="lead">Each question is scored from 1 to 4, averaged per part, then weighted. Other proposals need an explanation, not code. The reflection is not weighted; the developers read it to prepare the debrief.</p>
+    <div class="grid two">
+      <div class="card">
+        <div class="part-head"><h3>A · Infrastructure review</h3><span class="num">50 %</span></div>
+        <div class="bar"><span style="width:50%"></span></div>
+        <div class="q"><b>A1</b><span>Current state: what is good and should stay</span></div>
+        <div class="q"><b>A2</b><span>Five production risks, each with file, customer impact, likelihood and detection</span></div>
+        <div class="q"><b>A3</b><span>Quick wins, mid-term, long-term<small>Required code: one quick win</small></span></div>
+        <div class="q"><b>A4</b><span>Cloud-agnostic and on-premises hosting model</span></div>
+      </div>
+      <div class="card">
+        <div class="part-head"><h3>B · Observability and 99.9 %</h3><span class="num">35 %</span></div>
+        <div class="bar"><span style="width:35%"></span></div>
+        <div class="q"><b>B1</b><span>Know before the customer does<small>Required code: one alert rule with loading configuration</small></span></div>
+        <div class="q"><b>B2</b><span>Who is told what: severity, on-call, escalation</span></div>
+        <div class="q"><b>B3</b><span>Performance degradation</span></div>
+        <div class="q"><b>B4</b><span>User behaviour and product improvement, without personal data</span></div>
+        <div class="q"><b>B5</b><span>Path to 99.9 %: about 43 minutes of downtime per month</span></div>
+      </div>
+      <div class="card">
+        <div class="part-head"><h3>C · Maintainability</h3><span class="num">15 %</span></div>
+        <div class="bar"><span style="width:15%"></span></div>
+        <div class="q"><b>C1</b><span>Environment copies and provider pins</span></div>
+        <div class="q"><b>C2</b><span>Cross-state reads and apply order</span></div>
+        <div class="q"><b>C3</b><span>Dead code and stale imports</span></div>
+        <div class="q"><b>C4</b><span>First-boot configuration and run commands</span></div>
+        <div class="q"><b>C5</b><span>Local infrastructure checks</span></div>
+        <div class="q"><b>C6</b><span>Infrastructure code in TypeScript<small>Required code: for one C question of your choice</small></span></div>
+      </div>
+      <div class="card reflection">
+        <div class="part-head"><h3>R · Reflection</h3><span class="num muted">not weighted</span></div>
+        <div class="bar"><span style="width:100%"></span></div>
+        <div class="q"><b>R1</b><span>Work summary: order of work, time spent, state of the three implementations</span></div>
+        <div class="q"><b>R2</b><span>What went well</span></div>
+        <div class="q"><b>R3</b><span>What went badly, and the troubles you hit</span></div>
+        <div class="q"><b>R4</b><span>Where the AI was wrong, and how you noticed</span></div>
+        <div class="q"><b>R5</b><span>Where you disagree with the AI, and why</span></div>
+        <div class="q"><b>R6</b><span>How you would deliver the solution with AI agents: tasks, guardrails, review</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Score meanings</h2>
+    <div class="scores">
+      <div class="card"><span class="score s1">1</span>Missing or incorrect</div>
+      <div class="card"><span class="score s2">2</span>An idea without enough evidence, impact or trade-offs</div>
+      <div class="card"><span class="score s3">3</span>A justified answer with a practical first step</div>
+      <div class="card"><span class="score s4">4</span>Prioritised, with measurable acceptance checks and sensible sequencing</div>
+    </div>
+    <p class="lead" style="margin-top:14px">Missing, invalid or incomplete code for A3, B1 or your chosen C question limits that question to 2. A section you cannot explain in the debrief scores 1, whoever wrote it.</p>
+  </section>
+
+  <section>
+    <h2>Suggested time</h2>
+    <p class="lead">About 2 hours at most, including reading, the optional local stack and hand-in. A recommendation, not a stopwatch: more time does not earn more points. If you fall behind, drop stretch work first and mark gaps honestly.</p>
+    <div class="timeline" role="img" aria-label="Orientation 15 minutes, Part A 40, Part B 30, Part C 15, reflection 10, review and hand-in 10">
+      <span style="flex:15;background:#0396F2">15′</span>
+      <span style="flex:40;background:#004FE3">A · 40′</span>
+      <span style="flex:30;background:#3372E9">B · 30′</span>
+      <span style="flex:15;background:#669CF0">C · 15′</span>
+      <span style="flex:10;background:#FF84C1;color:#000816">R · 10′</span>
+      <span style="flex:10;background:#F33092">10′</span>
+    </div>
+    <div class="legend">
+      <span><i style="background:#0396F2"></i>Orientation</span>
+      <span><i style="background:#004FE3"></i>Part A</span>
+      <span><i style="background:#3372E9"></i>Part B</span>
+      <span><i style="background:#669CF0"></i>Part C</span>
+      <span><i style="background:#FF84C1"></i>Reflection</span>
+      <span><i style="background:#F33092"></i>Review and hand in</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>The system at a glance</h2>
+    <p class="lead">One app VM per environment behind Caddy, a shared observability VM and a shared control VM. Each environment has its own network, PostgreSQL server and Key Vault.</p>
+    <div class="grid two">
+      <figure class="card"><a href="docs/architecture.png"><img src="docs/architecture.png" alt="Architecture diagram of Acme Planner"></a><figcaption>From <a href="docs/architecture.md">docs/architecture.md</a>. Open the image for full size.</figcaption></figure>
+      <div class="card">
+        <h3>Read in this order</h3>
+        <ol class="flow">
+          <li><div><a href="docs/product.md"><code>docs/product.md</code></a>: customers, users, recovery targets</div></li>
+          <li><div><a href="docs/architecture.md"><code>docs/architecture.md</code></a>: how it is hosted today</div></li>
+          <li><div><a href="docs/incidents.md"><code>docs/incidents.md</code></a>: six condensed incidents</div></li>
+          <li><div>Skim <code>infra/environments/production/main.tf</code>, <code>infra/modules/app-environment/main.tf</code>, <code>infra/modules/vm/main.tf</code></div></li>
+          <li><div>Skim <code>runtime/app/compose.yml</code> and <code>runtime/observability/compose.yml</code></div></li>
+        </ol>
+        <p class="muted" style="margin-top:14px">You do not need to read every file. Some details in the pack are things a generic answer gets wrong: check claims against the files.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What is in the pack</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:32%">Path</th><th>What it is</th></tr></thead>
+        <tbody>
+          <tr><td><code>SOLUTION.md</code></td><td>Your answer and walkthrough template. Fill in your name at the top.</td></tr>
+          <tr><td><code>assets/</code></td><td>Your diagrams, linked from <code>SOLUTION.md</code>. A photo of a sketch is fine.</td></tr>
+          <tr><td><code>docs/</code></td><td>Product, architecture and incidents</td></tr>
+          <tr><td><code>infra/</code></td><td>Terraform: modules and four environment roots (control, observability, staging, production)</td></tr>
+          <tr><td><code>runtime/</code></td><td>Compose files and configs for the app, control and observability VMs</td></tr>
+          <tr><td><code>services/</code></td><td>Node.js stand-in tenant API with OpenTelemetry, and an excerpt of the tenant provisioner</td></tr>
+          <tr><td><code>local/</code></td><td>Optional local stack and k6 load test</td></tr>
+          <tr><td><code>scripts/</code></td><td>Local checks and the hand-in command</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Commands</h2>
+    <div class="grid two">
+      <div class="card">
+        <h3>Local checks (optional, no Azure)</h3>
+        <pre># mocked Terraform plan for staging
+npm run infra.plan
+# validate and plan-only tests, all four roots
+npm run infra.verify
+# compose check, terraform fmt and validate
+npm run validate</pre>
+        <p class="muted" style="margin-top:10px">Need Terraform 1.11.4 or newer. A skipped check is not a pass: report what you ran.</p>
+      </div>
+      <div class="card">
+        <h3>Optional local stack (Docker)</h3>
+        <pre># build, start and wait for both tenants
+npm start
+# k6 traffic for 2 minutes
+npm run load
+# stop one service and watch what happens
+npm run stop -- postgres
+# stop everything and delete the volumes
+npm stop</pre>
+        <p class="muted" style="margin-top:10px">Grafana on <code>localhost:30000</code>, Prometheus on <code>localhost:30001</code>. Its time counts toward the recommended 2 hours.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>AI and ground rules</h2>
+    <div class="grid two">
+      <div class="card wash">
+        <h3>Do</h3>
+        <ul class="list">
+          <li>Use AI assistants and coding agents fully: reading, drafting, coding, running the local checks.</li>
+          <li>Check every AI claim against the files, and note what it got wrong in R4.</li>
+          <li>Name tools and what you used them for under “Tools and AI used”.</li>
+          <li>Mark untested or partial work honestly; a skipped check is not a pass.</li>
+          <li>Ask the interviewer about the task or setup whenever something is unclear.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Don’t</h3>
+        <ul class="list no">
+          <li>Run a cloud apply, contact the fictional hosts or add credentials, and don’t let an agent do so.</li>
+          <li>Invent facts beyond <code>docs/</code>: write assumptions down instead.</li>
+          <li>Add a GitHub workflow or an apply/destroy command.</li>
+          <li>Use an AI assistant in the debrief: you explain every line yourself.</li>
+          <li>Share this pack or your answer outside the interview.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Your progress</h2>
+    <div class="grid two">
+      <div class="card checks" id="checks">
+        <div class="progress-row"><h3 style="margin:0">Checklist</h3><span class="muted" id="count"></span></div>
+        <div class="bar"><span id="progress" style="width:0%"></span></div>
+        <label><input type="checkbox" data-key="name"><span>First and last name at the top of <code>SOLUTION.md</code></span></label>
+        <label><input type="checkbox" data-key="summary"><span>Summary with top risks and where the three implementations are</span></label>
+        <label><input type="checkbox" data-key="a"><span>A1–A4 answered, five risks with files</span></label>
+        <label><input type="checkbox" data-key="a3"><span>A3 quick win: code, rollout, verification, risk, rollback</span></label>
+        <label><input type="checkbox" data-key="b"><span>B1–B5 answered</span></label>
+        <label><input type="checkbox" data-key="b1"><span>B1 alert rule with mount and rule-loading configuration</span></label>
+        <label><input type="checkbox" data-key="c"><span>C1–C6 answered, one marked “Selected implementation” with code</span></label>
+        <label><input type="checkbox" data-key="rest"><span>Roadmap, next steps, assumptions, tools and AI used</span></label>
+        <label><input type="checkbox" data-key="reflection"><span>Reflection R1–R6, including the time you spent</span></label>
+        <label><input type="checkbox" data-key="handin"><span><code>npm run handin</code> run and the printed file list checked</span></label>
+        <label><input type="checkbox" data-key="sent"><span>ZIP handed to the interviewer and receipt confirmed</span></label>
+        <div style="margin-top:12px"><button class="button" type="button" id="reset">Clear checklist</button></div>
+      </div>
+      <div class="card">
+        <h3>Hand in</h3>
+        <pre>npm run handin
+# or, without npm:
+node scripts/handin.mjs</pre>
+        <p style="margin-top:12px">Writes <code>handin/acme-planner-solution.zip</code> with <code>SOLUTION.md</code>, <code>assets/</code>, your changed or added files and a record of deletions. Check the printed list, then hand the ZIP to the interviewer in the agreed way and wait for their confirmation.</p>
+        <p class="muted">No Git commit, push or pull request needed. Keep <code>.pack-manifest.json</code> unchanged if it is there. If packaging fails, tell the interviewer before the deadline; the README explains the manual handoff.</p>
+        <p class="muted">The checklist is stored only in this browser. It is not handed in.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 zeit ag. All rights reserved. · Allee 1B, CH-6210 Sursee · <a href="https://zeitag.ch">zeitag.ch</a></p>
+    <p>Acme Planner and everything in this pack are fictional: no real systems, customers or secrets. Please do not share this pack or your answer outside the interview.</p>
+  </footer>
+</main>
+<script>
+(() => {
+  const KEY = 'acme-planner-assessment-checklist';
+  const boxes = [...document.querySelectorAll('#checks input[type=checkbox]')];
+  const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const write = (state) => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage unavailable: the checklist still works for this visit */ } };
+  const update = () => {
+    const done = boxes.filter((box) => box.checked).length;
+    document.getElementById('count').textContent = `${done} of ${boxes.length}`;
+    document.getElementById('progress').style.width = `${(done / boxes.length) * 100}%`;
+  };
+  const state = read();
+  for (const box of boxes) {
+    box.checked = Boolean(state[box.dataset.key]);
+    box.addEventListener('change', () => {
+      const next = read();
+      next[box.dataset.key] = box.checked;
+      write(next);
+      update();
+    });
+  }
+  document.getElementById('reset').addEventListener('click', () => {
+    for (const box of boxes) box.checked = false;
+    write({});
+    update();
+  });
+  update();
+})();
+</script>
+</body>
+</html>

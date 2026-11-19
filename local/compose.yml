@@ -1,0 +1,160 @@
+# Optional local stand-in: two tenant containers behind Caddy, Postgres, Redis and the
+# observability stack. It mirrors one app VM and the observability VM in one compose project.
+# Not required for the exercise. Start it with `npm start`.
+
+name: acme-local
+
+x-tenant: &tenant
+  build:
+    context: ..
+    dockerfile: services/demo-api/Dockerfile
+  restart: always
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  environment: &tenant-env
+    PORT: '3000'
+    REDIS_URL: redis://:local-dev-only@redis:6379/0
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+    OTEL_SERVICE_NAME: demo-api
+    OTEL_DEPLOYMENT_ENVIRONMENT: local
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: acme-caddy
+    restart: always
+    ports:
+      - '29999:80'
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - tenant-a
+      - tenant-b
+
+  tenant-a:
+    <<: *tenant
+    container_name: acme-tenant-a
+    environment:
+      <<: *tenant-env
+      TENANT_ID: a
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/tenant_a
+      OTEL_CONTAINER_NAME: acme-tenant-a
+
+  tenant-b:
+    <<: *tenant
+    container_name: acme-tenant-b
+    environment:
+      <<: *tenant-env
+      TENANT_ID: b
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/tenant_b
+      OTEL_CONTAINER_NAME: acme-tenant-b
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: acme-postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: acme-redis
+    restart: always
+    command: redis-server --requirepass local-dev-only
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'local-dev-only', '--no-auth-warning', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  alloy:
+    image: grafana/alloy:v1.20.1
+    container_name: acme-alloy
+    restart: always
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    volumes:
+      - ../runtime/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: acme-loki
+    restart: always
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ../runtime/observability/loki/local-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: acme-tempo
+    restart: always
+    command: -config.file=/etc/tempo/tempo.yaml
+    volumes:
+      - ../runtime/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: acme-prometheus
+    restart: always
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-remote-write-receiver
+    ports:
+      - '30001:9090'
+    volumes:
+      - ../runtime/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:12.4.13
+    container_name: acme-grafana
+    restart: always
+    ports:
+      - '30000:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor traceToMetrics
+    volumes:
+      - ../runtime/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+
+  # Load test. Not started by `npm start`; `npm run load` runs it once inside the compose network.
+  k6:
+    image: grafana/k6:1.8.2
+    profiles: ['load']
+    command: run /scripts/k6.js
+    environment:
+      BASE_URL: http://caddy
+    volumes:
+      - ./k6.js:/scripts/k6.js:ro
+
+volumes:
+  postgres_data:
+  loki_data:
+  tempo_data:
+  prometheus_data:
+  grafana_data:

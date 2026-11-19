@@ -1,0 +1,26 @@
+{
+  "name": "acme-planner-devops-challenge",
+  "private": true,
+  "workspaces": [
+    "services/*"
+  ],
+  "description": "Acme Planner DevOps assessment pack. npm start runs the local stack; see README.md.",
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "stop": "node scripts/stop.mjs",
+    "logs": "docker compose -f local/compose.yml logs -f --tail=100",
+    "load": "docker compose -f local/compose.yml run --rm k6",
+    "validate": "node scripts/validate.mjs",
+    "infra.plan": "node scripts/infra.mjs plan",
+    "infra.verify": "node scripts/infra.mjs verify",
+    "typecheck": "npm run typecheck --workspaces",
+    "handin": "node scripts/handin.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2"
+  }
+}

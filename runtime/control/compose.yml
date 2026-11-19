@@ -1,0 +1,23 @@
+# Control plane VM: Caddy only. The control API container is started by bootstrap.sh.
+# /opt/acme/.env provides AZURE_CONTAINER_REGISTRY; /etc/caddy/.env the DNS credentials.
+
+name: acme-control
+
+services:
+  caddy:
+    image: ${AZURE_CONTAINER_REGISTRY}/caddy-azure:2
+    container_name: acme-caddy
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - caddy_data:/data
+      - /etc/caddy:/etc/caddy
+    env_file:
+      - /etc/caddy/.env
+
+volumes:
+  caddy_data:

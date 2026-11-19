@@ -1,0 +1,12 @@
+node_modules/
+dist/
+handin/
+
+.terraform/
+.terraform-cache/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log*
+
+.DS_Store

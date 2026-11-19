@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: local
+    environment: development
+
+scrape_configs:
+  # Scrape Alloy's own internal metrics
+  - job_name: alloy
+    static_configs:
+      - targets: ['alloy:12345']
+        labels:
+          service_name: grafana-alloy
+
+  # Scrape Prometheus itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service_name: prometheus
+
+  # Scrape Tempo internal metrics
+  - job_name: tempo
+    static_configs:
+      - targets: ['tempo:3200']
+        labels:
+          service_name: grafana-tempo
+    metrics_path: /metrics

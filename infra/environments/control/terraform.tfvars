@@ -1,0 +1,10 @@
+location                     = "switzerlandnorth"
+vnet_cidr                    = "10.0.0.0/24"
+vm_size                      = "Standard_B2s"
+docker_disk_size_gb          = 256
+acr_name                     = "acmeplanneracr"
+acr_resource_group           = "acme-shared"
+dns_zone_name                = "planner.example"
+dns_zone_resource_group_name = "acme-dns"
+control_hostname             = "control.planner.example"
+github_repo                  = "acme/planner"

@@ -1,0 +1,161 @@
+// =============================================================================
+// Grafana Alloy Configuration — Acme Planner Production
+//
+// Production variant of config.alloy. Differences from the local dev config:
+//   - Docker log discovery targets only acme-redis and
+//     acme-chrome (present on the VM). acme-postgres is
+//     excluded because PostgreSQL runs as Azure PaaS (no local container).
+//   - The postgres tenant_id extraction stage.match is omitted for the same
+//     reason. Tenant context arrives via the OTEL log pipeline instead.
+//
+// Pipeline overview:
+//   1. OTLP receiver (gRPC :4317, HTTP :4318) ← NestJS API on host.docker.internal
+//   2. Batch processor → fan-out to:
+//      - Traces  → Tempo (via otelcol.exporter.otlp)
+//      - Metrics → Prometheus (via otelcol.exporter.prometheus + remote_write)
+//      - Logs    → Loki (via otelcol.exporter.loki + loki.write)
+//   3. Docker log discovery → Loki (Redis, Chrome containers on the VM)
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// OTLP Receiver — accepts traces, metrics, and logs from the NestJS API
+// The app container reaches this port via host.docker.internal:4317.
+// ---------------------------------------------------------------------------
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Batch Processor — buffers signals before exporting to reduce network calls
+// ---------------------------------------------------------------------------
+otelcol.processor.batch "default" {
+  timeout         = "5s"
+  send_batch_size = 1000
+
+  output {
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.processor.attributes.loki_hints.input]
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Trace Exporter → Tempo
+// ---------------------------------------------------------------------------
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Metrics Exporter → Prometheus (remote write)
+// ---------------------------------------------------------------------------
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Loki hints processor
+//
+// Inserts the special `loki.attribute.labels` hint attribute so that
+// otelcol.exporter.loki promotes `tenant_id` and `level` as Loki stream
+// labels. Stream labels are indexed by Loki and enable efficient per-tenant
+// log filtering in Grafana dashboards.
+//
+// Reference: https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.exporter.loki/
+// ---------------------------------------------------------------------------
+otelcol.processor.attributes "loki_hints" {
+  action {
+    key    = "loki.attribute.labels"
+    action = "insert"
+    value  = "tenant_id, level"
+  }
+
+  action {
+    key    = "loki.resource.labels"
+    action = "insert"
+    value  = "service.name, service.namespace, service.instance.id, container.name, tenant.id, tenant_id"
+  }
+
+  output {
+    logs = [otelcol.exporter.loki.default.input]
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Log Exporter → Loki
+// ---------------------------------------------------------------------------
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Docker Container Log Discovery — Production
+//
+// Discovers Redis, Chrome, and Solver containers on the VM.
+// PostgreSQL is excluded: it runs as Azure PaaS, not a local container.
+// The NestJS app container logs are covered by the OTEL pipeline above.
+// ---------------------------------------------------------------------------
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "name"
+    values = ["acme-redis", "acme-chrome", "acme-solver"]
+  }
+}
+
+discovery.relabel "container_labels" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/acme-(.*)"
+    replacement   = "acme-$1"
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+}
+
+loki.source.docker "container_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.container_labels.output
+  forward_to = [loki.write.default.receiver]
+}

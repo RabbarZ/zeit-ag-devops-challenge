@@ -1,0 +1,9 @@
+location                     = "switzerlandnorth"
+vnet_cidr                    = "10.0.10.0/24"
+vm_size                      = "Standard_B2ms"
+data_disk_size_gb            = 128
+docker_disk_size_gb          = 256
+acr_name                     = "acmeplanneracr"
+dns_zone_name                = "planner.example"
+dns_zone_resource_group_name = "acme-dns"
+grafana_hostname             = "grafana.planner.example"

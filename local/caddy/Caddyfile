@@ -1,0 +1,18 @@
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	@a host a.localhost
+	handle @a {
+		reverse_proxy tenant-a:3000
+	}
+
+	@b host b.localhost
+	handle @b {
+		reverse_proxy tenant-b:3000
+	}
+
+	respond "Acme Planner local stack. Use a.localhost or b.localhost." 404
+}

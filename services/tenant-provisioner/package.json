@@ -1,0 +1,13 @@
+{
+  "name": "tenant-provisioner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Excerpt of the control plane tenant provisioner, for the DevOps exercise.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "peerDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2"
+  }
+}
