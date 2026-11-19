@@ -1,0 +1,4 @@
+[
+  { "targets": ["http://tenant-a:3000/api/health"], "labels": { "name": "tenant-a", "module": "http_health", "tenant_id": "a", "env": "local" } },
+  { "targets": ["http://tenant-b:3000/api/health"], "labels": { "name": "tenant-b", "module": "http_health", "tenant_id": "b", "env": "local" } }
+]

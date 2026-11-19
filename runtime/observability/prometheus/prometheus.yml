@@ -5,6 +5,10 @@ global:
     cluster: local
     environment: development
 
+# Alert rules (B1). Mounted from ./prometheus/rules by the compose files.
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
 scrape_configs:
   # Scrape Alloy's own internal metrics
   - job_name: alloy

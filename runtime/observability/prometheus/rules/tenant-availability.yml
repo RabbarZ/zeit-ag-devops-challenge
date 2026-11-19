@@ -1,0 +1,28 @@
+# Loaded by prometheus.yml (rule_files). Signals come from the synthetic checks in alloy/config.alloy.
+groups:
+  - name: tenant-availability
+    rules:
+      # A tenant's health check has failed for 2 minutes: this tenant's users cannot work.
+      # 2 minutes = 4 failed checks in a row, so a single slow restart does not page anyone.
+      - alert: TenantDown
+        expr: probe_success{tenant_id!=""} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Tenant {{ $labels.tenant_id }} ({{ $labels.env }}) fails its health check'
+          description: >-
+            The health check of tenant {{ $labels.tenant_id }} has failed for at least 2 minutes.
+            Check in this order: is the container running (docker ps --filter name=acme-tenant-{{ $labels.tenant_id }}),
+            its logs in Grafana, then the database.
+
+      # No check results at all: Alloy is down, the target list is empty or remote write fails.
+      # Without this rule, TenantDown would stay silent exactly when the checks themselves are broken.
+      - alert: TenantProbesMissing
+        expr: absent(probe_success{tenant_id!=""})
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'No tenant health check results for 10 minutes'
+          description: 'Check acme-alloy on the observability VM and alloy/probe-targets.json.'

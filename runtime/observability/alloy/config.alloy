@@ -159,3 +159,40 @@ loki.source.docker "container_logs" {
   targets    = discovery.relabel.container_labels.output
   forward_to = [loki.write.default.receiver]
 }
+
+// ---------------------------------------------------------------------------
+// Synthetic tenant checks (B1)
+//
+// Every 30 s, request each tenant's /api/health the way a browser does: public DNS name,
+// TLS, Caddy, tenant container and its database (the endpoint returns 503 when the
+// database is down). The tenant list is probe-targets.json in Prometheus file_sd format;
+// each entry sets name, module, tenant_id and env. Alerts: prometheus/rules/tenant-availability.yml.
+// ---------------------------------------------------------------------------
+discovery.file "probe_targets" {
+  files = ["/etc/alloy/probe-targets.json"]
+}
+
+prometheus.exporter.blackbox "tenants" {
+  targets = discovery.file.probe_targets.targets
+  config  = `
+modules:
+  https_health:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+      fail_if_not_ssl: true
+  http_health:
+    prober: http
+    timeout: 5s
+    http:
+      valid_status_codes: [200]
+`
+}
+
+prometheus.scrape "tenant_probes" {
+  targets         = prometheus.exporter.blackbox.tenants.targets
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+  forward_to      = [prometheus.remote_write.default.receiver]
+}

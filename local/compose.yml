@@ -85,6 +85,7 @@ services:
     command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
     volumes:
       - ../runtime/observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - ./alloy/probe-targets.json:/etc/alloy/probe-targets.json:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
@@ -122,6 +123,7 @@ services:
       - '30001:9090'
     volumes:
       - ../runtime/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../runtime/observability/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
 
   grafana:
