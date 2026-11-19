@@ -1,229 +1,246 @@
 # Solution
 
-- **First name:** _Your first name_
-- **Last name:** _Your last name_
-
-Write below each quoted prompt and replace `_Your answer here._`. You may remove the prompts, but keep the headings. Short bullets are enough; do not write your answers inside blockquotes. German or English is fine.
-
-**Required code:** one A3 quick win, one B1 alert with loading configuration, and one C1–C6 improvement of your choice. Other proposals need an explanation, not implementation code. Use fenced code blocks with a file path and add/replace instruction, or reference the files you edited directly.
-
-**For each implementation, include:** customer impact; file paths/code; rollout order and commands; checks with actual results or “not run” and expected results; main risk; rollback. Separate implemented work from proposals and unfinished work. No cloud apply is needed.
-
-**Reflection:** finish with R1–R6: what you did and how long it took, what went well and badly, where the AI was wrong, where you disagree with it, and how you would deliver the solution with agents. We recommend spending about 2 hours in total.
-
-Diagrams are optional: save them in `assets/` and link them, for example `![Target setup](assets/target.png)`. See the README for the full task and assessment criteria.
+- **First name:** Kilian
+- **Last name:** Hürlimann
 
 ## Summary
 
-> Give up to five bullets: top risks, what should change first, and why customers benefit. Name your selected C1–C6 implementation and locate all three required implementations (section and file paths, or “snippet below”). State which are complete, partial or not started.
-
-_Your answer here._
+- **Top risks:** one app VM carries all ~40 production tenants; no alerting, so customers find outages (incident 1: 17 h).
+- **First:** detect outages ourselves (B1), stop surprise reboots (A3), then make tenants and the database recoverable.
+- **A3 – patch window:** complete. `infra/modules/vm/`, `infra/environments/{staging,production}/`.
+- **B1 – TenantDown alert:** complete, tested locally. `runtime/observability/alloy/`, `runtime/observability/prometheus/`.
+- **C3 – stale imports and dead code (selected):** complete. `infra/environments/{staging,production}/`, `scripts/find-dead-infra.sh`.
 
 ## Part A: Infrastructure review
 
 ### A1. Current state
 
-> **Discuss:** How do you rate the setup? Which decisions are good and should stay? Cite evidence. No code required.
+Good base for a small team, but one broken part can take all customers down.
 
-_Your answer here._
+**Keep:**
+- All infrastructure is in code (Terraform), and staging and production are built from the same code.
+- The database is not reachable from the Internet.
+- Passwords are in a Key Vault, not in files.
+- Fixes from past incidents are already built in (containers restart after a reboot; Docker won't start if its disk is missing).
+
+**Weak:**
+- Everything runs on one machine per environment.
+- No alerts: customers find problems first.
+- Some machines have more rights than they need.
 
 ### A2. Production risks
 
-> **Discuss:** Rank five production risks. For each: file reference, customer impact, likelihood, and how you would notice. A table is fine. No code required.
-
-_Your answer here._
+| # | Risk | File | Customer impact | Likelihood | How we notice |
+|---|---|---|---|---|---|
+| 1 | One app VM; tenants not declared anywhere; Azure reboots it when it wants | `infra/modules/vm/main.tf` | All tenants down | High | Today: customers. Now: B1 |
+| 2 | No alert rules, no Alertmanager | `runtime/observability/prometheus/prometheus.yml` | Outages last until someone complains | High | We don't |
+| 3 | PostgreSQL: one server without a standby copy, 7-day backups, restore never tested | `infra/environments/production/terraform.tfvars` | All tenants down for hours | Medium | Health checks fail (B1) |
+| 4 | SSH open to the Internet; WAF only logs; control VM has very broad rights | `infra/modules/app-environment/main.tf`, `infra/environments/control/main.tf` | Data breach across all tenants | Medium | Not at all |
+| 5 | Loki has no retention; shared 128 GB monitoring disk fills | `runtime/observability/loki/local-config.yaml` | Monitoring goes blind | Medium | No disk alert |
 
 ### A3. Improvements
 
-> **Discuss:** Quick wins (days), mid-term (weeks), long-term (quarters). For each: customer impact, effort and main risk.
->
-> **Required code:** One complete quick win. Include its file paths/code, rollout, verification and rollback. Label the other changes as proposals. Further quick wins or a first mid-term implementation are optional.
+| When | Change | Customer impact | Effort | Main risk |
+|---|---|---|---|---|
+| Days | **Patch window (implemented)** | No reboots during working hours | 30 min | Window rejected by Azure |
+| Days | Close SSH from the Internet; Loki retention; DB backups 7 → 35 days | Safer, monitoring stays up | ~2 h | Locking out operators |
+| Weeks | Declare tenants on the VM, re-create them at boot | Lost tenant comes back by itself | 3–5 days | Bug restarts tenants |
+| Weeks | PostgreSQL standby copy in a second datacenter (`pg_high_availability_mode = "ZoneRedundant"`) + monthly restore test | DB failure costs ~2 minutes, not hours | 1–2 days, ~2× DB cost (needs budget approval) | Short errors during the switch |
+| Quarters | Two app VMs behind a load balancer | Reboots and deploys without downtime | 4–6 weeks | Sessions, routing |
 
-_Your answer here._
+#### Implemented quick win: weekly patch window
+
+- **What and why:** Azure still patches, but only in our window. Staging **Tuesday 12:00–15:00** (patched first, while engineers are at work). Production **Saturday 22:00–01:00**, far from the Monday peak.
+- **Files:**
+  - `infra/modules/vm/variables.tf`: `patch_schedule`; rejects Monday windows.
+  - `infra/modules/vm/main.tf`: maintenance configuration + assignment; VM flag set only when a window exists.
+  - `infra/modules/app-environment/*`, `infra/environments/{staging,production}/*.tf`, `terraform.tfvars`: pass and set the windows.
+  - `infra/environments/{staging,production}/tests/local.tftest.hcl`: 4 assertions.
+- **Rollout:** staging first; the plan must show 2 to add and the VM updated in place (no replace). After one good Tuesday, production.
+- **Checks run:** `npm run infra.verify` passes (all 4 environments); Monday window rejected; `patch_schedule = null` plans. **Not run:** real plan against Azure.
+- **Risk:** Azure rejects the window or replaces the VM; any replace in the plan stops the rollout.
+- **Rollback:** `patch_schedule = null` and apply.
 
 ### A4. Cloud-agnostic and on-premises
 
-> **Discuss:** A hosting model for Azure, another public cloud and on-premises. Which cloud services stay or are replaced, and what do replacements cost? Who updates, backs up, restores and monitors customer installations?
->
-> **Optional code:** One tenant deployment definition and its database backup job.
-
-_Your answer here._
+- Same container images everywhere, deployed with Kubernetes (Azure, other cloud, or k3s on customer hardware).
+- **Cost:** we run PostgreSQL ourselves on-prem; three platforms to test with one DevOps engineer.
+- **Updates, backup, monitoring:** customer installs signed releases with our runbook; backup job included, restore test twice a year; monitoring config ships with it.
 
 ## Part B: Observability and 99.9 %
 
 ### B1. Know before the customer does
 
-> **Discuss:** External checks, actionable alert signals, and an independent way to detect that monitoring itself is down.
->
-> **Required code:** One loadable alert rule, with file mounts and rule-loading configuration where needed. Reuse existing signals or include new collection configuration. Explain how to trigger and resolve the alert, rollout, verification and rollback. Actual external probes, extra rules and monitoring-of-monitoring code are optional.
+- **Outside-in:** check every tenant's health endpoint (implemented); later one check from outside Azure.
+- **Alert on:** tenant down, error rate, slow responses, disk full, certificate expiry.
+- **Monitoring of monitoring:** `TenantProbesMissing` (implemented); later a watchdog alert to an external service.
 
-_Your answer here._
+#### Implemented: TenantDown alert
+
+- **What:** Alloy calls each tenant's `/api/health` every 30 s, like a browser (DNS, TLS, Caddy, container, database). Prometheus alerts when a tenant fails for 2 minutes.
+- **Files:**
+  - `runtime/observability/alloy/config.alloy`: reads the tenant list, runs the checks, sends results to Prometheus.
+  - `runtime/observability/alloy/probe-targets.json` (production list, empty: tenant names not given), `local/alloy/probe-targets.json` (local tenants).
+  - `runtime/observability/prometheus/rules/tenant-availability.yml`: `TenantDown` (failing 2 min, critical) and `TenantProbesMissing` (no results 10 min, warning).
+  - `runtime/observability/prometheus/prometheus.yml` (`rule_files`), `runtime/observability/compose.yml`, `local/compose.yml` (mounts).
+- **Trigger / resolve:** stop the database → fires after ~2 min; start it → resolves.
+- **Rollout:** staging first. Fill the tenant list, copy `runtime/observability/` to the VM, `docker compose up -d alloy prometheus`. Then production.
+- **Checks run:** `promtool check rules` OK; Alloy syntax OK; compose config OK. Local test: stopped postgres 15:25:42 → firing 15:27:56; started 15:28:15 → resolved 15:28:42.
+- **Local difference:** locally the checks call the containers directly (no Caddy); production uses the public HTTPS URL.
+- **Risk:** false alarms or an outdated tenant list. **Rollback:** `git revert` and redeploy; only monitoring changes.
 
 ### B2. Who is told what
 
-> **Discuss:** Severity, example, channel, response time and responsible person/team. Cover on-call, escalation, alert fatigue, customer communication and the fields in an actionable alert. Explain the intended route for your B1 alert; real paging is not required.
->
-> **Optional code:** Notification routing and an example notification.
+| Severity | Example | Channel | Response |
+|---|---|---|---|
+| Critical | TenantDown in production | Page + Teams | 15 min |
+| Warning | Disk > 80 %, slow responses | Teams + ticket | Same day |
+| Info | Staging alerts | Teams | Next day |
 
-_Your answer here._
+- **On-call:** weekly rota of the 4 backend/DevOps engineers, business hours first. No answer in 15 min → second person.
+- **Less noise:** page only when customers are affected; everything else becomes a ticket.
+- **An alert says:** what, which tenant, since when, impact, link to dashboard and runbook.
+- **B1 route:** production → page; staging → Teams only.
 
 ### B3. Performance degradation
 
-> **Discuss:** Latency per tenant and endpoint, solver and database time, saturation, browser experience, and deployment regressions.
->
-> **Optional code:** Latency/solver queries or collection of a missing signal.
-
-_Your answer here._
+- Response time per tenant and endpoint (p95), compared to last Monday.
+- Solver run time and timeouts; database query time.
+- VM CPU, memory and disk; Redis memory (full Redis logs users out).
+- Browser speed and errors (real-user monitoring).
+- Compare upgraded vs. not-yet-upgraded tenants after a deploy.
 
 ### B4. User behaviour and product improvement
 
-> **Discuss:** Useful product events and their purpose, GDPR/nDSG and customer trust, on-premises hosting, and how findings reach the product team. Avoid personal data.
->
-> **Optional code:** An event schema and code sending one event.
-
-_Your answer here._
+- **Events:** plan solved (duration, result), plan published, shift swaps, feature usage.
+- **Privacy:** only tenant ID and role; no names, e-mails or absence reasons; data stays in Switzerland; agreed in the customer contract; customers can switch it off.
+- **On-prem:** off by default. **Product team:** monthly dashboard review.
 
 ### B5. Path to 99.9 %
 
-> **Discuss:** Availability maths, redundancy, deployments, maintenance, backup/restore, an error-budget rule and remaining single points of failure.
->
-> **Optional code:** An availability SLI query and error-budget alert.
-
-_Your answer here._
+- 99.9 % = at most about 43 minutes of downtime per month.
+- **Database:** today one server. If it fails, all tenants are down for hours. A standby copy in a second datacenter takes over in about 2 minutes.
+- **App VMs:** two VMs behind a load balancer, each big enough to carry the full load alone. If one fails or reboots, the other takes over.
+- **Deployments and patching:** one VM at a time, so customers don't notice.
+- **Backup:** test a restore every month, so we know it works within 4 hours.
+- **Error budget:** if the 43 minutes are used up in a month, no new features until next month, only stability work.
+- **Still single:** the Azure region and the monitoring VM.
 
 ## Part C: Maintainability
 
-Give a few sentences for each question. Choose **one** for your third implementation, mark it “Selected implementation”, and name it in the summary. Include rollout, verification and rollback with that code. The other five need discussion only.
-
 ### C1. Environment copies and provider pins
 
-> **Discuss:** Consistency without losing staged rollout between environments.
->
-> **Code if selected:** Shared layout and Terraform for `staging` and `production`.
-
-_Your answer here._
+- Provider versions differ (4.80.0 vs 4.81.0) by accident, not by decision.
+- Keep separate environments, but one list of versions; staging gets a new version first, production a week later.
+- Test shared modules against every pinned version (incident 3).
 
 ### C2. Cross-state reads and apply order
 
-> **Discuss:** Risks of cross-state reads and two-round applies; a safer structure and dependency order.
->
-> **Code if selected:** Restructured inputs of one environment root.
-
-_Your answer here._
+- **Risk:** each environment can read all of another's state (including secrets); new environments need two applies; a missing state silently removes a network link.
+- **Fix:** one network root owns all networks and links, applied first; other roots get IDs as normal inputs.
 
 ### C3. Dead code and stale imports
 
-> **Discuss:** How to find unused code, establish whether state still uses it, and remove it safely.
->
-> **Code if selected:** Discovery commands/script and the removal of what you found. Explain deletions here; hand-in records them only when `.pack-manifest.json` is present, so list them here in any case.
+**Selected implementation.**
 
-_Your answer here._
+- **What and why:** staging and production had an `import` block pointing at a role assignment ID that was never imported. A real `terraform plan` fails on it, which blocks all infrastructure changes. The local tests hid this with special overrides. `infra/modules/tenant` was unused.
+- **Discovery:** `scripts/find-dead-infra.sh` lists unused modules, `import` blocks and unused variables. On the original pack it finds exactly the tenant module and both imports.
+- **Removed:**
+  - `infra/environments/{staging,production}/main.tf`: the `import` block.
+  - `infra/environments/{staging,production}/variables.tf`: `subscription_id` (only used by the import).
+  - `infra/environments/{staging,production}/tests/local.tftest.hcl`: the overrides that hid it.
+  - **Deleted files:** `infra/modules/tenant/README.md`, `infra/modules/tenant/main.tf`, `infra/modules/tenant/variables.tf`.
+- **Rollout (staging first):** check the real state before applying:
+  1. `terraform state list | grep control_vm_postgres`: if present, nothing changes.
+  2. If not: `az role assignment list --scope <pg-server-id>`. If it exists, import it with the real ID first; if not, the plan creates it.
+- **Checks run:** `npm run infra.verify` passes; the script reports "Nothing found." **Not run:** plan against real Azure.
+- **Risk:** the role assignment exists in Azure but not in state → create fails (step 2 prevents it). **Rollback:** `git revert`.
 
 ### C4. First-boot configuration and run commands
 
-> **Discuss:** Drift and reproducibility after first boot; how your replacement reaches existing machines.
->
-> **Code if selected:** Replace run commands for one setting made by VM setup today.
-
-_Your answer here._
+- Changes after first boot never reach existing VMs automatically, and Terraform hides that drift.
+- **Fix:** VM config as a versioned bundle, applied on every deploy and reporting drift; later prebuilt images.
 
 ### C5. Local infrastructure checks
 
-> **Discuss:** What do the mock-provider checks in `npm run infra.plan` and `npm run infra.verify` prove, and what remains unverified? How would you detect failed/missed checks and live drift in a real deployment? Apply and destroy are outside this pack.
->
-> **Code if selected:** Local check/script changes or tests. Do not add an apply/destroy command or a GitHub workflow.
-
-_Your answer here._
+- **Proves:** syntax, provider schema, plan graph, assertions. **Doesn't prove:** Azure accepts it, permissions, drift.
+- **Trust least:** the fixture overrides (C3 shows they hid a real failure).
+- **Missed runs:** alert if the last successful run is older than 24 h; nightly read-only plan for drift.
 
 ### C6. Infrastructure code in TypeScript
 
-> **Discuss:** Team benefit, migration effort, existing state and the current status of any tool you recommend. Staying with HCL is a valid choice.
->
-> **Code if selected:** One pack resource in your recommended tool, or an HCL improvement if staying with HCL.
-
-_Your answer here._
+- **Stay with HCL:** small setup, one DevOps engineer.
+- CDK for Terraform was archived by HashiCorp in December 2025. Pulumi works but needs every resource imported again: risky (incident 6: replacing the VM wipes all tenants).
 
 ## Roadmap (next 90 days)
 
-> Order the proposed work, identify dependencies and say how success is measured. No additional implementation code required.
-
-_Your answer here._
+- **Weeks 1–2:** B1 + on-call, patch window, C3, close SSH, Loki retention. *Success: the next outage is found by an alert.*
+- **Weeks 3–6:** declared tenants, PostgreSQL standby copy, first restore test. *Success: restore measured under 4 h.*
+- **Weeks 7–12:** network restructure (C2), second app VM, deploys without downtime. *Success: monthly availability reported per tenant.*
 
 ## What I would do next
 
-> List incomplete sections or implementations, what is missing, and the next concrete step. Write “None” if nothing is unfinished; do not present planned checks as completed.
-
-_Your answer here._
+- B1: fill the production tenant list, add Alertmanager routing, add an external check.
+- A3 and C3: real `terraform plan` against staging.
+- Patch windows for the monitoring and control VMs.
 
 ## Assumptions and open questions
 
-> State assumptions beyond `docs/` and questions for the team. Write “None” if there are none.
-
-_Your answer here._
+- Assumption: Saturday night has the lowest traffic.
+- Question: is the old `github_actions_principal_id` still used? It has broad rights.
 
 ## Tools and AI used
 
-> Name the tools, documentation, AI assistants and agents you used, and what you used each one for, for example reading the pack, drafting answers, writing code or running the local checks. If you did not use AI, say so.
-
-_Your answer here._
+- **Claude Code (Claude Opus 5.5) in VS Code:** reading the pack, planning, writing code and this document, running checks. I reviewed and committed each feature separately.
+- **Tools:** Terraform 1.14.7, Node.js 24, Docker, promtool 3.2.1, Alloy 1.20.1.
 
 ## Reflection
 
-Short, honest bullets. Concrete examples from this pack and your hand-in are worth more than general statements. The reflection is not weighted in the score; the developers read it to prepare the debrief.
-
 ### R1. Work summary
 
-> What you did and in what order, the time you actually spent, and the state of your three implementations (complete, partial, not started; checks run or not run).
-
-_Your answer here._
+- **Time:** 2 h 30 min.
+- **Order:** plan with the agent → install tools → A3 → C3 → B1 (with local stack) → this document.
+- **State:** all three complete; local checks run; nothing run against real Azure.
 
 ### R2. What went well
 
-> What worked, in the result and in your way of working, and why.
-
-_Your answer here._
+- Finding gaps in the implementation, e.g. the stale import hidden by the test overrides.
+- One feature per commit kept each change easy to review.
 
 ### R3. What went badly and troubles encountered
 
-> What did not work or took longer than planned: unclear parts of the task, tool or setup problems, dead ends. What you did about each one.
-
-_Your answer here._
+- Working on a VM and testing everything with the agent: Node, Terraform and Docker had to be installed first, which took more time.
+- After installing Docker, it only worked without sudo after a new login.
 
 ### R4. Where the AI was wrong
 
-> AI output that was wrong, incomplete or did not fit this pack. For each: what it said, how you noticed (file, check or documentation) and what you did instead. If you did not use AI, write “No AI used”.
-
-_Your answer here._
+- **Docker:** the AI said a new terminal would pick up the Docker group. In VS Code it did not; `hello-world` failed without sudo.
+- **Terraform test:** the AI's first assertions pointed at resources inside nested modules. Terraform rejected them; `infra.verify` caught it.
 
 ### R5. Where I disagree with the AI
 
-> Suggestions that may be technically valid but that you do not agree with for this team and product, and why (priority, cost, risk, customer impact). If you did not use AI, write “No AI used”.
-
-_Your answer here._
+- **Staging patch window:** the AI proposed Tuesday night. I changed it to Tuesday noon, so engineers are at work if a patch breaks something, days before production.
 
 ### R6. Agentic delivery
 
-> How would you deliver your proposed changes (implementations and roadmap) with AI agents in this team? Cover how you split the work into agent tasks, the context and instructions the agents get, permissions and guardrails (credentials, plan versus apply, production access), how agent output is verified and reviewed, where a human decides, and how you would tell whether the approach works.
-
-_Your answer here._
+- One agent task = one change = one commit, as done here.
+- Agents get the repo rules (no apply, staging first, which checks to run) but no Azure write access.
+- The agent must show check results; a human reads the plan and decides about production, permissions and data.
+- **Is it working:** share of agent changes merged without rework, and changes that caused incidents.
 
 ## Developer walkthrough (15 minutes)
-
-Use your submitted answer and code; no slides or AI assistant. This is a speaking checklist, not another written deliverable:
 
 - **3 min:** Current setup, what should stay, top risks and customer impact.
 - **3 min:** Priorities, alternatives and trade-offs.
 - **6 min:** One implementation in detail: files, how it works, rollout, actual/planned verification, risk and rollback. Locate the other two implementations briefly.
 - **3 min:** Remaining risks, unfinished work, assumptions and next steps, and one thing the AI got wrong.
 
-Be ready to explain any submitted code line by line and adapt a small part live using your editor and documentation, without AI.
-
 ## Handoff checklist
 
-- [ ] My first and last name are filled in at the top of this file.
-- [ ] My three implementations are identified; partial and untested work is labelled honestly.
-- [ ] Code snippets have paths; directly edited files are referenced from the matching answer section.
-- [ ] My reflection (R1–R6) is filled in, including the time I spent.
+- [x] My first and last name are filled in at the top of this file.
+- [x] My three implementations are identified; partial and untested work is labelled honestly.
+- [x] Code snippets have paths; directly edited files are referenced from the matching answer section.
+- [x] My reflection (R1–R6) is filled in, including the time I spent.
 - [ ] I saved everything and ran `npm run handin` (or arranged a manual handoff if it failed).
 - [ ] I checked the printed included-file and deletion list, including hidden source files.
 - [ ] I handed `handin/acme-planner-solution.zip` to the interviewer in the agreed way, and they confirmed receipt (or confirmed a complete manual copy).
