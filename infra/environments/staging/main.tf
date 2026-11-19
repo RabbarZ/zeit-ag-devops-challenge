@@ -89,8 +89,3 @@ resource "azurerm_role_assignment" "control_vm_postgres" {
   principal_id         = local.control_vm_principal_id
 }
 
-# Left behind after a manual fix. Still points at an assignment ID that was never imported.
-import {
-  to = azurerm_role_assignment.control_vm_postgres[0]
-  id = "/subscriptions/${var.subscription_id}/resourceGroups/rg-acme-staging/providers/Microsoft.DBforPostgreSQL/flexibleServers/rg-acme-staging-pg/providers/Microsoft.Authorization/roleAssignments/00000000-0000-0000-0000-000000000000"
-}

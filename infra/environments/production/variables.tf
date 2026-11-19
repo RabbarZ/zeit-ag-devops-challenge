@@ -1,8 +1,3 @@
-variable "subscription_id" {
-  description = "Only used by the import block. The provider reads ARM_SUBSCRIPTION_ID."
-  type        = string
-}
-
 variable "terraform_state_resource_group_name" {
   type = string
 }

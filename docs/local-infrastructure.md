@@ -26,7 +26,7 @@ Valid environments are `control`, `observability`, `staging` and `production`. U
 
 Each root has a visible fixture at `infra/environments/<environment>/tests/local.tftest.hcl`. It supplies dummy inputs, mocks AzureRM and other external providers, and overrides every Azure remote-state lookup. The control fixture also mocks registry and DNS lookups. No Azure provider authentication or backend initialisation is performed.
 
-Staging and production contain stale import blocks as part of the assessment. Mock providers cannot import real resources, so the test fixtures override those specific import targets and supply a plan-time PostgreSQL ID. The source import blocks are **not removed or fixed**. Passing this check does not establish that those imports would succeed against Azure.
+The stale import blocks that staging and production used to contain, and the fixture overrides that hid them from the mock plan, were removed (see `SOLUTION.md`, C3). `bash scripts/find-dead-infra.sh` reports any new import block, unused module or unused variable. Before applying that removal against Azure, check the real state as described in C3.
 
 Local metadata is isolated under each root's `.terraform/local-mocks/`; existing deployment state is not used. Caller `ARM_*`, `AZURE_*`, `TF_VAR_*` and `TF_CLI_ARGS*` variables are stripped from Terraform's environment so they cannot change the fixture inputs or inject CLI options. Missing, empty or apply-based fixtures fail rather than silently reporting success.
 

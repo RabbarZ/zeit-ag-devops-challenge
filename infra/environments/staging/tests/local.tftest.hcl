@@ -1,17 +1,9 @@
 # Local planning only. All cloud providers and remote state reads are mocked.
-mock_provider "azurerm" {
-  mock_resource "azurerm_postgresql_flexible_server" {
-    override_during = plan
-    defaults = {
-      id = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-acme-staging/providers/Microsoft.DBforPostgreSQL/flexibleServers/rg-acme-staging-pg"
-    }
-  }
-}
+mock_provider "azurerm" {}
 mock_provider "random" {}
 mock_provider "time" {}
 
 variables {
-  subscription_id                      = "00000000-0000-0000-0000-000000000001"
   terraform_state_resource_group_name  = "local-fixture"
   terraform_state_storage_account_name = "localfixture"
   terraform_state_container_name       = "local-fixture"
@@ -39,21 +31,6 @@ override_data {
       vnet_id                  = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-acme-control/providers/Microsoft.Network/virtualNetworks/rg-acme-control-vnet"
       vm_identity_principal_id = "00000000-0000-0000-0000-000000000005"
     }
-  }
-}
-
-# Mock providers cannot import an Azure resource. Supply fixture state for the
-# existing import target; the stale import block remains visible in main.tf.
-override_resource {
-  target = azurerm_role_assignment.control_vm_postgres[0]
-  values = {
-    id                   = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-acme-staging/providers/Microsoft.DBforPostgreSQL/flexibleServers/rg-acme-staging-pg/providers/Microsoft.Authorization/roleAssignments/00000000-0000-0000-0000-000000000000"
-    scope                = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-acme-staging/providers/Microsoft.DBforPostgreSQL/flexibleServers/rg-acme-staging-pg"
-    name                 = "00000000-0000-0000-0000-000000000000"
-    principal_id         = "00000000-0000-0000-0000-000000000005"
-    principal_type       = "ServicePrincipal"
-    role_definition_id   = "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
-    role_definition_name = "Contributor"
   }
 }
 
