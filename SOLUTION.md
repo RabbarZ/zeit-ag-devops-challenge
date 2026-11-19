@@ -241,6 +241,6 @@ Good base for a small team, but one broken part can take all customers down.
 - [x] My three implementations are identified; partial and untested work is labelled honestly.
 - [x] Code snippets have paths; directly edited files are referenced from the matching answer section.
 - [x] My reflection (R1–R6) is filled in, including the time I spent.
-- [ ] I saved everything and ran `npm run handin` (or arranged a manual handoff if it failed).
-- [ ] I checked the printed included-file and deletion list, including hidden source files.
+- [x] I saved everything and ran `npm run handin` (or arranged a manual handoff if it failed).
+- [x] I checked the printed included-file and deletion list, including hidden source files.
 - [ ] I handed `handin/acme-planner-solution.zip` to the interviewer in the agreed way, and they confirmed receipt (or confirmed a complete manual copy).
