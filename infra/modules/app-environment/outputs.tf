@@ -33,3 +33,7 @@ output "pg_fqdn" {
 output "vnet_id" {
   value = module.networking.vnet_id
 }
+
+output "patch_window" {
+  value = module.vm.patch_window
+}

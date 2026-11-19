@@ -68,4 +68,24 @@ run "local_plan" {
     condition     = output.keyvault_name != ""
     error_message = "The environment must produce a Key Vault name."
   }
+
+  assert {
+    condition     = module.app.patch_window.recur_every == "Week Tuesday"
+    error_message = "The app VM must have a weekly patch window on Tuesday."
+  }
+
+  assert {
+    condition     = module.app.patch_window.duration == "03:00"
+    error_message = "The patch window must use the 3-hour default duration."
+  }
+
+  assert {
+    condition     = module.app.patch_window.vm_uses_user_window
+    error_message = "The VM must hand patch timing to the maintenance configuration."
+  }
+
+  assert {
+    condition     = module.app.patch_window.assigned_to_this_vm
+    error_message = "The patch window must be assigned to the app VM."
+  }
 }

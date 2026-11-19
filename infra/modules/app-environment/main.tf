@@ -75,6 +75,7 @@ module "vm" {
   ssh_public_key       = var.ssh_public_key
   keyvault_id          = module.keyvault.vault_id
   docker_disk_size_gb  = var.docker_disk_size_gb
+  patch_schedule       = var.patch_schedule
   tags                 = local.tags
 
   cloud_init_template = "${path.module}/../vm/cloud-init/app.yml.tpl"

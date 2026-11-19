@@ -63,6 +63,7 @@ module "app" {
   dns_suffix                   = var.dns_suffix
   seed_secrets                 = merge(var.seed_secrets, local.observability_secrets)
   peer_vnet_ids                = local.peer_vnet_ids
+  patch_schedule               = var.patch_schedule
   tags                         = var.tags
 }
 

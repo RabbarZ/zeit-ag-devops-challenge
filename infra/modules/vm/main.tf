@@ -66,7 +66,7 @@ resource "azurerm_linux_virtual_machine" "this" {
   patch_mode                                             = var.patch_mode
   patch_assessment_mode                                  = var.patch_mode
   provision_vm_agent                                     = true
-  bypass_platform_safety_checks_on_user_schedule_enabled = var.bypass_platform_safety_checks_on_user_schedule
+  bypass_platform_safety_checks_on_user_schedule_enabled = var.patch_schedule != null
 
   lifecycle {
     # cloud-init runs on first boot only; later changes reach the VM as run commands.
@@ -140,6 +140,42 @@ resource "azurerm_virtual_machine_run_command" "docker_mount_check" {
   }
 
   depends_on = [azurerm_virtual_machine_data_disk_attachment.docker]
+}
+
+# Customer-managed patch window. Same patch classes as AutomaticByPlatform installs today,
+# only the timing changes. The VM flag above and this assignment must exist together:
+# with the flag set but no assignment, Azure stops patching the VM.
+resource "azurerm_maintenance_configuration" "patch" {
+  count               = var.patch_schedule == null ? 0 : 1
+  name                = "${local.name}-patch-window"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  scope               = "InGuestPatch"
+  # "User" is the API value for a customer-managed in-guest patch schedule.
+  in_guest_user_patch_mode = "User"
+  tags                     = var.tags
+
+  window {
+    start_date_time = var.patch_schedule.start_date_time
+    duration        = var.patch_schedule.duration
+    time_zone       = var.patch_schedule.time_zone
+    recur_every     = var.patch_schedule.recur_every
+  }
+
+  install_patches {
+    reboot = "IfRequired"
+
+    linux {
+      classifications_to_include = ["Critical", "Security"]
+    }
+  }
+}
+
+resource "azurerm_maintenance_assignment_virtual_machine" "patch" {
+  count                        = var.patch_schedule == null ? 0 : 1
+  location                     = var.location
+  maintenance_configuration_id = azurerm_maintenance_configuration.patch[0].id
+  virtual_machine_id           = azurerm_linux_virtual_machine.this.id
 }
 
 # Secrets Officer rather than Secrets User: bootstrap.sh stores the host key fingerprint on first boot.

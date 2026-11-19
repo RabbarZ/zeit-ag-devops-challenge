@@ -105,3 +105,14 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "patch_schedule" {
+  description = "Weekly OS patch window for the app VM, passed to the vm module. null leaves the timing to Azure."
+  type = object({
+    start_date_time = string
+    recur_every     = string
+    duration        = optional(string)
+    time_zone       = optional(string)
+  })
+  default = null
+}

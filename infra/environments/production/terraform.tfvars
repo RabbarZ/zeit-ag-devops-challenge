@@ -12,3 +12,9 @@ acr_name                     = "acmeplanneracr"
 dns_zone_name                = "planner.example"
 dns_zone_resource_group_name = "acme-dns"
 dns_suffix                   = "planner.example"
+
+# Lowest traffic, far from the Monday 07:00-09:00 planning peak. Tenants are briefly down if the VM reboots.
+patch_schedule = {
+  start_date_time = "2026-12-05 22:00" # a Saturday
+  recur_every     = "Week Saturday"
+}

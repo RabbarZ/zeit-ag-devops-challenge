@@ -75,9 +75,27 @@ variable "patch_mode" {
   }
 }
 
-variable "bypass_platform_safety_checks_on_user_schedule" {
-  type    = bool
-  default = false
+# Without a schedule, Azure picks the patch and reboot time (incident 1: an evening reboot nobody expected).
+# With a schedule, patches and reboots happen only inside this weekly window.
+variable "patch_schedule" {
+  description = "Weekly OS patch window. null leaves the timing to Azure. start_date_time is \"YYYY-MM-DD hh:mm\" in time_zone."
+  type = object({
+    start_date_time = string
+    recur_every     = string
+    duration        = optional(string, "03:00")
+    time_zone       = optional(string, "W. Europe Standard Time")
+  })
+  default = null
+
+  validation {
+    condition     = var.patch_schedule == null || var.patch_mode == "AutomaticByPlatform"
+    error_message = "A patch schedule only works when Azure does the patching (patch_mode = AutomaticByPlatform); the schedule then decides when."
+  }
+
+  validation {
+    condition     = var.patch_schedule == null ? true : !strcontains(var.patch_schedule.recur_every, "Monday")
+    error_message = "No patch window on Mondays: Monday morning is the planning peak (docs/product.md)."
+  }
 }
 
 variable "tags" {
